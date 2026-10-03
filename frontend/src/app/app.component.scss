@@ -1,0 +1,585 @@
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@600;700&display=swap');
+
+// Soothing Base Canvas
+$bg-canvas: #edf0f5;
+$bg-card: #ffffff;
+$border-soft: #dce2ea;
+
+$text-head: #0f172a;
+$text-body: #334155;
+$text-muted: #64748b;
+
+// Status Badge Colors (Success, Primary, Warning)
+$c-success-bg: #dcfce7;
+$c-success-text: #15803d;
+$c-success-border: #86efac;
+
+$c-primary-bg: #e0e7ff;
+$c-primary-text: #4338ca;
+$c-primary-border: #a5b4fc;
+
+$c-warning-bg: #fef3c7;
+$c-warning-text: #b45309;
+$c-warning-border: #fcd34d;
+
+// Interactive Elements
+$c-blue: #3b82f6;
+$c-blue-hover: #2563eb;
+$c-red: #ef4444;
+$c-red-hover: #dc2626;
+
+// FULL WIDTH VIEWPORT (NO CENTER MAX-WIDTH RESTRICTION)
+.app-viewport {
+  min-height: 100vh;
+  width: 100%;
+  background-color: $bg-canvas;
+  font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+  color: $text-body;
+  padding: 16px 24px;
+  box-sizing: border-box;
+}
+
+.dashboard-wrapper {
+  width: 100%; // Poora 100% width cover karega
+  margin: 0;
+}
+
+// 1. Top Bar Full Width
+.app-topbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: $bg-card;
+  border: 1px solid $border-soft;
+  border-radius: 14px;
+  padding: 12px 24px;
+  margin-bottom: 20px;
+  box-shadow: 0 2px 6px rgba(15, 23, 42, 0.03);
+
+  .brand-zone {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+
+    .logo-box {
+      width: 40px;
+      height: 40px;
+      border-radius: 10px;
+      background: linear-gradient(135deg, #1e293b, #0f172a);
+      color: #38bdf8;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 3px 8px rgba(15, 23, 42, 0.12);
+    }
+
+    .title-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+
+      h1 {
+        margin: 0;
+        font-size: 18px;
+        font-weight: 800;
+        color: $text-head;
+        letter-spacing: -0.4px;
+      }
+
+      .pill-active {
+        font-size: 10px;
+        font-weight: 700;
+        letter-spacing: 0.6px;
+        background: #e0f2fe;
+        color: #0369a1;
+        padding: 2px 7px;
+        border-radius: 5px;
+      }
+    }
+
+    .subtitle {
+      margin: 2px 0 0;
+      font-size: 11px;
+      color: $text-muted;
+    }
+  }
+
+  .stats-ribbon {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+
+    .ribbon-card {
+      background: #f8fafc;
+      border: 1px solid $border-soft;
+      border-radius: 10px;
+      padding: 7px 14px;
+      min-width: 90px;
+
+      .rc-label {
+        display: block;
+        font-size: 10px;
+        font-weight: 700;
+        text-transform: uppercase;
+        color: $text-muted;
+        margin-bottom: 2px;
+      }
+
+      .rc-val {
+        font-size: 16px;
+        font-weight: 800;
+        color: $text-head;
+
+        &.val-green { color: #16a34a; }
+        &.val-alert { color: $c-red; }
+      }
+
+      .mini-progress-row {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+
+        .progress-track {
+          width: 44px;
+          height: 6px;
+          background: #e2e8f0;
+          border-radius: 99px;
+          overflow: hidden;
+
+          .progress-fill {
+            height: 100%;
+            background: $c-blue;
+            transition: width 0.3s ease;
+
+            &.fill-alert { background: $c-red; }
+          }
+        }
+      }
+
+      .surge-badge {
+        display: inline-block;
+        font-size: 11px;
+        font-weight: 700;
+        padding: 3px 8px;
+        border-radius: 6px;
+        margin-top: 2px;
+
+        &.badge-normal { background: #ecfdf5; border: 1px solid #a7f3d0; color: #047857; }
+        &.badge-surge { background: #fefce8; border: 1px solid #fef08a; color: #a16207; }
+        &.badge-peak { background: #fef2f2; border: 1px solid #fecaca; color: #b91c1c; }
+      }
+    }
+  }
+}
+
+// 2. Full-Width Workspace Layout
+.grid-layout {
+  display: grid;
+  grid-template-columns: 1fr 380px;
+  gap: 20px;
+  align-items: start;
+}
+
+// Left Parking Area
+.parking-section {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+
+  .level-card {
+    background: $bg-card;
+    border: 1px solid $border-soft;
+    border-radius: 14px;
+    padding: 18px 22px;
+    box-shadow: 0 2px 6px rgba(15, 23, 42, 0.02);
+
+    .level-head {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 14px;
+      padding-bottom: 10px;
+      border-bottom: 1px solid #f1f5f9;
+
+      .level-title {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+
+        .level-indicator {
+          width: 9px;
+          height: 9px;
+          border-radius: 50%;
+          &.bg-blue { background: $c-blue; box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15); }
+          &.bg-indigo { background: #6366f1; box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.15); }
+        }
+
+        h3 {
+          margin: 0;
+          font-size: 15px;
+          font-weight: 700;
+          color: $text-head;
+        }
+      }
+
+      .level-meta {
+        font-size: 12px;
+        color: $text-muted;
+      }
+    }
+
+    .bay-rack {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 14px;
+    }
+  }
+}
+
+// ============================================
+// BAY SLOT: AVAILABLE (GREEN) vs BOOKED (RED)
+// ============================================
+.bay-slot {
+  position: relative;
+  border-radius: 12px;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  transition: all 0.18s ease;
+  box-shadow: 0 2px 4px rgba(15, 23, 42, 0.04);
+
+  &:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 14px rgba(15, 23, 42, 0.07);
+  }
+
+  // 1. AVAILABLE BOX (GREEN)
+  &.bay-available {
+    background-color: #f0fdf4;
+    border: 1.5px solid #22c55e;
+
+    .bay-line-top {
+      height: 4px;
+      background: #16a34a;
+    }
+
+    .bay-id {
+      color: #14532d;
+    }
+
+    .status-available {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      background: #ffffff;
+      border: 1px solid #86efac;
+      padding: 3px 8px;
+      border-radius: 6px;
+
+      .dot-green {
+        width: 6px;
+        height: 6px;
+        border-radius: 50%;
+        background: #16a34a;
+      }
+
+      .status-txt {
+        font-size: 10px;
+        font-weight: 800;
+        letter-spacing: 0.5px;
+        color: #15803d;
+      }
+    }
+
+    .bay-foot {
+      border-top: 1px dashed #bbf7d0;
+      .price-live {
+        font-size: 13px;
+        font-weight: 800;
+        color: #15803d;
+        small { font-size: 11px; font-weight: 600; color: #166534; }
+      }
+    }
+  }
+
+  // 2. BOOKED / OCCUPIED BOX (RED)
+  &.bay-occupied {
+    background-color: #fef2f2;
+    border: 1.5px solid #ef4444;
+
+    .bay-line-top {
+      height: 4px;
+      background: #dc2626;
+    }
+
+    .bay-id {
+      color: #7f1d1d;
+    }
+
+    .vehicle-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      background: #ffffff;
+      border: 1px solid #fca5a5;
+      padding: 3px 8px;
+      border-radius: 6px;
+
+      .car-ico { font-size: 12px; }
+      .vehicle-no {
+        font-family: 'JetBrains Mono', monospace;
+        font-size: 11px;
+        font-weight: 800;
+        color: #991b1b;
+      }
+    }
+
+    .bay-foot {
+      border-top: 1px dashed #fecaca;
+      .price-locked {
+        font-size: 11px;
+        font-weight: 800;
+        color: #b91c1c;
+      }
+    }
+  }
+
+  .bay-inner {
+    padding: 12px 14px;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    min-height: 105px;
+  }
+
+  .bay-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+
+    .bay-id {
+      font-size: 18px;
+      font-weight: 800;
+      font-family: 'JetBrains Mono', monospace;
+    }
+
+    .type-chip {
+      font-size: 9px;
+      font-weight: 800;
+      padding: 2px 7px;
+      border-radius: 5px;
+      letter-spacing: 0.5px;
+
+      &.chip-regular {
+        background-color: $c-success-bg;
+        color: $c-success-text;
+        border: 1px solid $c-success-border;
+      }
+
+      &.chip-ev {
+        background-color: $c-primary-bg;
+        color: $c-primary-text;
+        border: 1px solid $c-primary-border;
+      }
+
+      &.chip-vip {
+        background-color: $c-warning-bg;
+        color: $c-warning-text;
+        border: 1px solid $c-warning-border;
+      }
+    }
+  }
+
+  .bay-body {
+    margin: 8px 0;
+  }
+
+  .bay-foot {
+    display: flex;
+    justify-content: flex-end;
+    align-items: center;
+    padding-top: 6px;
+  }
+}
+
+// Right Control Column
+.terminal-deck {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+
+  .gate-card {
+    background: $bg-card;
+    border: 1px solid $border-soft;
+    border-radius: 14px;
+    padding: 18px;
+    box-shadow: 0 2px 6px rgba(15, 23, 42, 0.02);
+
+    .gate-header {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 14px;
+
+      .gate-badge {
+        width: 32px;
+        height: 32px;
+        border-radius: 8px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+
+        &.bg-soft-blue { background: #eff6ff; color: $c-blue; }
+        &.bg-soft-rose { background: #fff1f2; color: $c-red; }
+      }
+
+      h4 {
+        margin: 0;
+        font-size: 14px;
+        font-weight: 700;
+        color: $text-head;
+      }
+
+      p {
+        margin: 2px 0 0;
+        font-size: 11px;
+        color: $text-muted;
+      }
+    }
+
+    .gate-body {
+      display: flex;
+      flex-direction: column;
+      gap: 11px;
+
+      .field-item {
+        display: flex;
+        flex-direction: column;
+        gap: 5px;
+
+        label {
+          font-size: 11px;
+          font-weight: 700;
+          color: $text-body;
+          text-transform: uppercase;
+          letter-spacing: 0.4px;
+        }
+
+        input, select {
+          padding: 9px 12px;
+          border-radius: 8px;
+          border: 1.5px solid #cbd5e1;
+          font-family: inherit;
+          font-size: 13px;
+          color: $text-head;
+          background: #ffffff;
+          box-sizing: border-box;
+          outline: none;
+          transition: border-color 0.15s, box-shadow 0.15s;
+
+          &:focus {
+            border-color: $c-blue;
+            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.12);
+          }
+        }
+
+        .err-text {
+          font-size: 11px;
+          color: $c-red;
+        }
+      }
+
+      .btn {
+        margin-top: 4px;
+        padding: 10px;
+        border-radius: 8px;
+        border: none;
+        font-size: 13px;
+        font-weight: 700;
+        cursor: pointer;
+        transition: all 0.15s ease;
+
+        &:active { transform: scale(0.99); }
+
+        &.btn-entry {
+          background: $c-blue;
+          color: white;
+          &:hover { background: $c-blue-hover; box-shadow: 0 4px 12px rgba(59, 130, 246, 0.25); }
+        }
+
+        &.btn-exit {
+          background: $c-red;
+          color: white;
+          &:hover { background: $c-red-hover; box-shadow: 0 4px 12px rgba(239, 68, 68, 0.25); }
+        }
+      }
+    }
+  }
+
+  // Voucher Box
+  .voucher-box {
+    background: #ffffff;
+    border: 1px solid #cbd5e1;
+    border-radius: 14px;
+    padding: 16px;
+    box-shadow: 0 4px 12px rgba(15, 23, 42, 0.04);
+
+    .voucher-top {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border-bottom: 1px dashed #cbd5e1;
+      padding-bottom: 10px;
+      margin-bottom: 10px;
+
+      h5 { margin: 0; font-size: 12px; font-weight: 800; color: $text-head; letter-spacing: 0.5px; }
+      .voucher-badge {
+        font-size: 9px;
+        font-weight: 800;
+        background: #16a34a;
+        color: white;
+        padding: 2px 6px;
+        border-radius: 4px;
+      }
+    }
+
+    .voucher-grid {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+
+      .v-line {
+        display: flex;
+        justify-content: space-between;
+        font-size: 12px;
+        span { color: $text-muted; }
+        strong { font-family: 'JetBrains Mono', monospace; color: $text-head; }
+      }
+
+      .grace-box {
+        background: #ecfdf5;
+        border: 1px solid #a7f3d0;
+        color: #065f46;
+        font-size: 11px;
+        font-weight: 700;
+        text-align: center;
+        padding: 5px;
+        border-radius: 6px;
+        margin: 4px 0;
+      }
+
+      .v-total {
+        margin-top: 6px;
+        padding-top: 8px;
+        border-top: 1.5px dashed #cbd5e1;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+
+        span { font-size: 12px; font-weight: 800; color: $text-head; }
+        strong { font-size: 18px; font-weight: 800; font-family: 'JetBrains Mono', monospace; color: $text-head; }
+        .green-price { color: #16a34a; }
+      }
+    }
+  }
+}
