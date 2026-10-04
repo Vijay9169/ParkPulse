@@ -1,245 +1,163 @@
+require("dotenv").config();
 const express = require("express");
 const cors = require("cors");
-require("dotenv").config();
-const { INITIAL_SLOTS } = require("./seedSlots");
+const connectDB = require("./config/db");
+const Slot = require("./models/Slot");
 
 const app = express();
+
 app.use(cors());
 app.use(express.json());
 
-let slots = [...INITIAL_SLOTS];
-let activeSessions = {}; // Key: vehicleNo
+connectDB();
 
-// Helper: Dynamic Surge Pricing Algorithm for CURRENT market
-function calculateCurrentRate(slot) {
-    const occupiedCount = slots.filter((s) => s.status === "OCCUPIED").length;
-    const occupancyPercentage = (occupiedCount / slots.length) * 100;
+// Dynamic surge multiplier calculate karne ka function
+const getDynamicMultiplier = (occupancyPercent) => {
+  if (occupancyPercent >= 75) return 1.5;
+  if (occupancyPercent >= 50) return 1.25;
+  return 1.0;
+};
 
-    let surgeMultiplier = 1.0;
-    if (occupancyPercentage >= 75) {
-        surgeMultiplier = 1.5; // 50% surge on peak
-    } else if (occupancyPercentage >= 50) {
-        surgeMultiplier = 1.25;
-    }
+// 1. GET /api/slots - Fetch all slots mapped exactly for Angular
+app.get("/api/slots", async (req, res) => {
+  try {
+    const rawSlots = await Slot.find().sort({ level: 1, slotId: 1 }).lean();
 
-    return Math.round(slot.baseRatePerHour * surgeMultiplier);
-}
+    const occupiedCount = rawSlots.filter((s) => s.isOccupied).length;
+    const totalCount = rawSlots.length;
+    const occupancyPercent = totalCount ? Math.round((occupiedCount / totalCount) * 100) : 0;
+    const multiplier = getDynamicMultiplier(occupancyPercent);
 
-// 1. GET ALL SLOTS
-app.get("/api/slots", (req, res) => {
-    const slotsWithLivePrice = slots.map((slot) => {
-        // Agar slot occupied hai, to us vehicle ka locked rate fetch karein
-        const session = Object.values(activeSessions).find(s => s.slotId === slot.id);
-        return {
-            ...slot,
-            currentDynamicRate: calculateCurrentRate(slot),
-            lockedRatePerHour: session ? session.ratePerHour : null // Entry time locked rate
-        };
+    // Frontend `ParkingSlot` interface ke sath exact mapping
+    const data = rawSlots.map((s) => {
+      const base = s.baseRate || 40;
+      const dynamicRate = Math.round(base * multiplier);
+      const isOccupied = !!s.isOccupied;
+
+      return {
+        id: s.slotId,
+        type: s.type || "REGULAR",
+        floor: s.level === 0 ? "Ground" : "B1",
+        status: isOccupied ? "OCCUPIED" : "AVAILABLE",
+        baseRatePerHour: base,
+        currentDynamicRate: dynamicRate,
+        currentVehicle: s.vehicleNumber || undefined,
+        lockedRatePerHour: isOccupied ? dynamicRate : null,
+      };
     });
-    res.json({ success: true, data: slotsWithLivePrice });
+
+    res.json({
+      success: true,
+      data,
+    });
+  } catch (error) {
+    console.error("Fetch slots error:", error);
+    res.status(500).json({ success: false, message: "Slots fetch error" });
+  }
 });
 
-// 2. POST /api/book-slot (Entry Gate - Smart Cheapest-First Allocation)
-// app.post("/api/book-slot", (req, res) => {
-//     const { vehicleNo, type } = req.body;
-
-//     if (!vehicleNo) {
-//         return res.status(400).json({ success: false, message: "Vehicle number required" });
-//     }
-
-//     if (activeSessions[vehicleNo]) {
-//         return res.status(400).json({ success: false, message: "Vehicle already inside parking!" });
-//     }
-
-//     // 1. Filter available slots matching type
-//     const availableSlots = slots.filter(
-//         (s) => s.status === "AVAILABLE" && (!type || s.type === type)
-//     );
-
-//     if (availableSlots.length === 0) {
-//         return res.status(404).json({ success: false, message: "No slot available for type: " + (type || 'ANY') });
-//     }
-
-//     // 2. Sort by Cheapest Price First (Best deal for customer)
-//     availableSlots.sort((a, b) => a.baseRatePerHour - b.baseRatePerHour);
-//     const targetSlot = availableSlots[0];
-
-//     // 3. Freeze rate at this exact moment
-//     const lockedRate = calculateCurrentRate(targetSlot);
-
-//     // 4. Mark Occupied
-//     targetSlot.status = "OCCUPIED";
-//     targetSlot.currentVehicle = vehicleNo;
-
-//     const session = {
-//         sessionId: "SESS_" + Date.now(),
-//         vehicleNo,
-//         slotId: targetSlot.id,
-//         entryTime: Date.now(),
-//         ratePerHour: lockedRate, // <--- PRICE LOCKED HERE! Never changes for this car
-//     };
-
-//     activeSessions[vehicleNo] = session;
-
-//     return res.json({
-//         success: true,
-//         message: `Slot ${targetSlot.id} allocated at locked rate of ₹${lockedRate}/hr!`,
-//         session,
-//     });
-// });
-
-// 2. POST /api/book-slot (Supports Auto-assign OR Specific Bay Choice)
-app.post("/api/book-slot", (req, res) => {
+// 2. POST /api/book-slot - Gate 1 Entry Check-in
+app.post("/api/book-slot", async (req, res) => {
+  try {
     const { vehicleNo, type, preferredSlotId } = req.body;
 
     if (!vehicleNo) {
-        return res.status(400).json({ success: false, message: "Vehicle number required" });
+      return res.status(400).json({ success: false, message: "Vehicle license plate zaroori hai." });
     }
 
-    if (activeSessions[vehicleNo]) {
-        return res.status(400).json({ success: false, message: "Vehicle already inside parking!" });
-    }
-
-    let targetSlot;
+    let targetSlot = null;
 
     if (preferredSlotId) {
-        // Agar user ne specific bay choose kiya hai
-        targetSlot = slots.find(
-            (s) => s.id === preferredSlotId && s.status === "AVAILABLE"
-        );
-        if (!targetSlot) {
-            return res.status(400).json({ success: false, message: `Slot ${preferredSlotId} is already occupied or invalid!` });
-        }
-    } else {
-        // Agar user ne koi specific bay nahi chuna, to Auto-Assign cheapest available
-        const availableSlots = slots.filter(
-            (s) => s.status === "AVAILABLE" && (!type || s.type === type)
-        );
-
-        if (availableSlots.length === 0) {
-            return res.status(404).json({ success: false, message: "No available slots for type: " + (type || 'ANY') });
-        }
-
-        availableSlots.sort((a, b) => a.baseRatePerHour - b.baseRatePerHour);
-        targetSlot = availableSlots[0];
+      targetSlot = await Slot.findOne({ slotId: preferredSlotId, isOccupied: false });
     }
 
-    // Freeze rate at entry
-    const lockedRate = calculateCurrentRate(targetSlot);
+    if (!targetSlot) {
+      const searchType = (type || "REGULAR").toUpperCase();
+      targetSlot = await Slot.findOne({ type: searchType, isOccupied: false });
 
-    targetSlot.status = "OCCUPIED";
-    targetSlot.currentVehicle = vehicleNo;
+      if (!targetSlot && searchType !== "REGULAR") {
+        targetSlot = await Slot.findOne({ type: "REGULAR", isOccupied: false });
+      }
+    }
 
-    const session = {
-        sessionId: "SESS_" + Date.now(),
-        vehicleNo,
-        slotId: targetSlot.id,
-        entryTime: Date.now(),
-        ratePerHour: lockedRate,
-    };
+    if (!targetSlot) {
+      return res.status(404).json({ success: false, message: `Koi ${type || "REGULAR"} bay vacant nahi hai!` });
+    }
 
-    activeSessions[vehicleNo] = session;
+    targetSlot.isOccupied = true;
+    targetSlot.vehicleNumber = vehicleNo.trim().toUpperCase();
+    targetSlot.entryTime = new Date();
+    await targetSlot.save();
 
-    return res.json({
-        success: true,
-        message: `Slot ${targetSlot.id} allocated successfully at locked rate ₹${lockedRate}/hr!`,
-        session,
+    res.json({
+      success: true,
+      message: `Bay ${targetSlot.slotId} successfully allocate ho gayi.`,
+      session: {
+        id: targetSlot.slotId,
+        vehicleNo: targetSlot.vehicleNumber,
+        slotId: targetSlot.slotId,
+      },
     });
+  } catch (error) {
+    console.error("Book error:", error);
+    res.status(500).json({ success: false, message: "Booking process failed." });
+  }
 });
 
-// 3. POST /api/exit-slot (Exit Gate - Bill calculated on LOCKED rate)
-// app.post("/api/exit-slot", (req, res) => {
-//   const { vehicleNo } = req.body;
-
-//   const session = activeSessions[vehicleNo];
-//   if (!session) {
-//     return res.status(404).json({ success: false, message: "No active session found for vehicle" });
-//   }
-
-//   const exitTime = Date.now();
-//   // Duration calculation (demo: 1 min = 1 hr)
-//   const durationInMinutes = Math.max(1, Math.round((exitTime - session.entryTime) / 60000));
-//   const billableHours = Math.ceil(durationInMinutes / 1);
-
-//   // IMPORTANT: Multiply by session.ratePerHour (Entry time rate), NOT the surge rate!
-//   const totalAmount = billableHours * session.ratePerHour;
-
-//   const slot = slots.find((s) => s.id === session.slotId);
-//   if (slot) {
-//     slot.status = "AVAILABLE";
-//     delete slot.currentVehicle;
-//   }
-
-//   delete activeSessions[vehicleNo];
-
-//   return res.json({
-//     success: true,
-//     receipt: {
-//       vehicleNo,
-//       slotId: session.slotId,
-//       entryTime: new Date(session.entryTime).toLocaleTimeString(),
-//       exitTime: new Date(exitTime).toLocaleTimeString(),
-//       totalHours: billableHours,
-//       lockedEntryRate: session.ratePerHour,
-//       totalAmount,
-//     },
-//   });
-// });
-
-// 3. POST /api/exit-slot (Real-World Accurate Billing)
-app.post("/api/exit-slot", (req, res) => {
+// 3. POST /api/exit-slot - Gate 2 Checkout & Receipt Generation
+app.post("/api/exit-slot", async (req, res) => {
+  try {
     const { vehicleNo } = req.body;
 
-    const session = activeSessions[vehicleNo];
-    if (!session) {
-        return res.status(404).json({ success: false, message: "No active session found for vehicle" });
+    if (!vehicleNo) {
+      return res.status(400).json({ success: false, message: "Vehicle plate number enter kijiye." });
     }
 
-    const exitTime = Date.now();
+    const cleanVehicleNo = vehicleNo.trim().toUpperCase();
+    const slot = await Slot.findOne({ vehicleNumber: cleanVehicleNo, isOccupied: true });
 
-    // Real duration in milliseconds & minutes
-    const durationMs = exitTime - session.entryTime;
-    const durationInMinutes = Math.max(1, Math.round(durationMs / (1000 * 60)));
-
-    let billableHours = 0;
-    let totalAmount = 0;
-
-    // RULE 1: Pehle 15 minute Grace Period (FREE)
-    if (durationInMinutes <= 15) {
-        billableHours = 0;
-        totalAmount = 0;
-    } else {
-        // RULE 2: 15 min ke baad actual hourly slabs (e.g. 70 min = 2 hours)
-        billableHours = Math.ceil(durationInMinutes / 60);
-        totalAmount = billableHours * session.ratePerHour;
+    if (!slot) {
+      return res.status(404).json({ success: false, message: `Gaadi ${cleanVehicleNo} parking me nahi mili!` });
     }
 
-    // Slot ko free karein
-    const slot = slots.find((s) => s.id === session.slotId);
-    if (slot) {
-        slot.status = "AVAILABLE";
-        delete slot.currentVehicle;
-    }
+    const exitTime = new Date();
+    const entryTime = slot.entryTime ? new Date(slot.entryTime) : new Date(Date.now() - 25 * 60 * 1000);
+    const diffMs = Math.max(0, exitTime - entryTime);
+    const durationMinutes = Math.max(1, Math.round(diffMs / (1000 * 60)));
 
-    delete activeSessions[vehicleNo];
+    // 15 mins se kam free grace period
+    const isGracePeriod = durationMinutes <= 15;
+    const billableHours = Math.max(1, Math.ceil(durationMinutes / 60));
+    const lockedEntryRate = slot.baseRate || 40;
+    const totalAmount = isGracePeriod ? 0 : billableHours * lockedEntryRate;
 
-    return res.json({
-        success: true,
-        receipt: {
-            vehicleNo,
-            slotId: session.slotId,
-            entryTime: new Date(session.entryTime).toLocaleTimeString(),
-            exitTime: new Date(exitTime).toLocaleTimeString(),
-            durationMinutes: durationInMinutes,
-            billableHours,
-            lockedEntryRate: session.ratePerHour,
-            totalAmount,
-            isGracePeriod: durationInMinutes <= 15
-        },
+    // Slot free karein
+    slot.isOccupied = false;
+    slot.vehicleNumber = null;
+    slot.entryTime = null;
+    await slot.save();
+
+    res.json({
+      success: true,
+      receipt: {
+        vehicleNo: cleanVehicleNo,
+        slotId: slot.slotId,
+        entryTime: entryTime.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+        exitTime: exitTime.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+        durationMinutes,
+        billableHours,
+        lockedEntryRate,
+        isGracePeriod,
+        totalAmount,
+      },
     });
+  } catch (error) {
+    console.error("Exit error:", error);
+    res.status(500).json({ success: false, message: "Checkout failed." });
+  }
 });
 
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => {
-    console.log(`Smart Parking Backend running on http://localhost:${PORT}`);
+  console.log(`Smart Parking Backend running on http://localhost:${PORT}`);
 });
