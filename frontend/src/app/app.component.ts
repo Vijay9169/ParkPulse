@@ -1,7 +1,7 @@
-import { Component, OnInit, inject, signal, computed } from '@angular/core';
+import { Component, OnInit, OnDestroy, inject, signal, computed } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { CommonModule } from '@angular/common';
-import { ParkingService, ParkingSlot } from './parking.service';
+import { ParkingService, ParkingSlot, ParkingLog } from './parking.service';
 
 @Component({
   selector: 'app-root',
@@ -10,8 +10,11 @@ import { ParkingService, ParkingSlot } from './parking.service';
   templateUrl: './app.component.html',
   styleUrl: './app.component.scss'
 })
-export class AppComponent implements OnInit {
+export class AppComponent implements OnInit, OnDestroy {
   parkingService = inject(ParkingService);
+
+  // Active View: 'TERMINAL' (Guard View) ya 'ANALYTICS' (Owner View)
+  activeTab = signal<'TERMINAL' | 'ANALYTICS'>('TERMINAL');
 
   // Form Signals
   vehicleNo = signal<string>('');
@@ -31,7 +34,19 @@ export class AppComponent implements OnInit {
     return Math.round(((total - this.availableSlots()) / total) * 100);
   });
 
-  // Floor Grouping (No more awkward lonely slots)
+  // Owner Financial Analytics
+  totalRevenue = computed(() => 
+    this.parkingService.logs().reduce((sum, log) => sum + (log.totalAmount || 0), 0)
+  );
+  totalVehiclesHandled = computed(() => this.parkingService.logs().length);
+
+  // Naya computed property add karein
+  avgTariff = computed(() => {
+    const total = this.totalVehiclesHandled();
+    return total ? Math.round(this.totalRevenue() / total) : 0;
+  });
+
+  // Floor Grouping
   groundFloorSlots = computed(() => 
     this.parkingService.slots().filter(s => s.floor === 'Ground')
   );
@@ -39,7 +54,6 @@ export class AppComponent implements OnInit {
     this.parkingService.slots().filter(s => s.floor === 'B1')
   );
 
-  // Filter available bays according to currently selected Vehicle Type
   matchingAvailableBays = computed(() => {
     const type = this.selectedType();
     return this.parkingService.slots().filter(
@@ -48,7 +62,32 @@ export class AppComponent implements OnInit {
   });
 
   ngOnInit() {
-    this.parkingService.fetchSlots();
+    this.parkingService.startPolling(3500); // 3.5s auto polling on
+    this.parkingService.fetchLogs();
+  }
+
+  ngOnDestroy() {
+    this.parkingService.stopPolling();
+  }
+
+  // 2. Interactive Click-to-Park / Quick-Exit
+  onSlotClick(slot: ParkingSlot) {
+    if (slot.status === 'AVAILABLE') {
+      // Khali slot click karne par check-in deck me bay auto-select ho jaye
+      this.selectedType.set(slot.type);
+      this.selectedSlotId.set(slot.id);
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    } else if (slot.status === 'OCCUPIED' && slot.currentVehicle) {
+      // Occupied slot click karne par exit gate form auto-fill ho jaye
+      this.exitVehicleNo.set(slot.currentVehicle);
+    }
+  }
+
+  switchTab(tab: 'TERMINAL' | 'ANALYTICS') {
+    this.activeTab.set(tab);
+    if (tab === 'ANALYTICS') {
+      this.parkingService.fetchLogs();
+    }
   }
 
   onTypeChange(newType: string) {
@@ -67,7 +106,7 @@ export class AppComponent implements OnInit {
       this.selectedType(), 
       this.selectedSlotId() || undefined
     ).subscribe({
-      next: (res) => {
+      next: () => {
         this.vehicleNo.set('');
         this.selectedSlotId.set('');
       },

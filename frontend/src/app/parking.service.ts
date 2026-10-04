@@ -1,6 +1,7 @@
-import { Injectable, inject, signal } from '@angular/core';
+import { Injectable, inject, signal, OnDestroy } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { tap } from 'rxjs';
+import { environment } from '../environments/environment';
 
 export interface ParkingSlot {
   id: string;
@@ -13,48 +14,76 @@ export interface ParkingSlot {
   lockedRatePerHour?: number | null;
 }
 
+export interface ParkingLog {
+  _id: string;
+  vehicleNo: string;
+  slotId: string;
+  floor: string;
+  type: string;
+  entryTime: string;
+  exitTime: string;
+  durationMinutes: number;
+  billableHours: number;
+  ratePerHour: number;
+  totalAmount: number;
+  isGracePeriod: boolean;
+  createdAt: string;
+}
+
 @Injectable({
   providedIn: 'root'
 })
-export class ParkingService {
+export class ParkingService implements OnDestroy {
   private http = inject(HttpClient);
-  private apiUrl = 'http://localhost:5000/api';
+  private apiUrl = environment.apiUrl;
+  private pollingTimer: any = null;
 
   // Signals State
   slots = signal<ParkingSlot[]>([]);
+  logs = signal<ParkingLog[]>([]);
   isLoading = signal<boolean>(false);
-  message = signal<string>('');
 
   fetchSlots() {
-    this.isLoading.set(true);
     this.http.get<{ success: boolean; data: ParkingSlot[] }>(`${this.apiUrl}/slots`)
       .subscribe({
-        next: (res) => {
-          this.slots.set(res.data);
-          this.isLoading.set(false);
-        },
-        error: (err) => {
-          console.error('Fetch slots error:', err);
-          this.isLoading.set(false);
-        }
+        next: (res) => this.slots.set(res.data),
+        error: (err) => console.error('Fetch slots error:', err)
       });
   }
 
-//   bookSlot(vehicleNo: string, type: string) {
-//     return this.http.post<{ success: boolean; message: string; session: any }>(
-//       `${this.apiUrl}/book-slot`,
-//       { vehicleNo, type }
-//     ).pipe(
-//       tap(() => this.fetchSlots()) // Slot book hote hi UI automatically refresh
-//     );
-//   }
+  fetchLogs() {
+    this.http.get<{ success: boolean; data: ParkingLog[] }>(`${this.apiUrl}/logs`)
+      .subscribe({
+        next: (res) => this.logs.set(res.data),
+        error: (err) => console.error('Fetch logs error:', err)
+      });
+  }
+
+  // 1. Auto-Polling Setup (Har 3.5 seconds me background sync)
+  startPolling(intervalMs: number = 3500) {
+    this.fetchSlots();
+    if (!this.pollingTimer) {
+      this.pollingTimer = setInterval(() => {
+        this.fetchSlots();
+      }, intervalMs);
+    }
+  }
+
+  stopPolling() {
+    if (this.pollingTimer) {
+      clearInterval(this.pollingTimer);
+      this.pollingTimer = null;
+    }
+  }
 
   bookSlot(vehicleNo: string, type: string, preferredSlotId?: string) {
     return this.http.post<{ success: boolean; message: string; session: any }>(
       `${this.apiUrl}/book-slot`,
       { vehicleNo, type, preferredSlotId }
     ).pipe(
-      tap(() => this.fetchSlots())
+      tap(() => {
+        this.fetchSlots();
+      })
     );
   }
 
@@ -63,7 +92,14 @@ export class ParkingService {
       `${this.apiUrl}/exit-slot`,
       { vehicleNo }
     ).pipe(
-      tap(() => this.fetchSlots()) // Slot release hote hi UI refresh
+      tap(() => {
+        this.fetchSlots();
+        this.fetchLogs();
+      })
     );
+  }
+
+  ngOnDestroy() {
+    this.stopPolling();
   }
 }

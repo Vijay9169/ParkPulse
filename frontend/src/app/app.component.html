@@ -19,6 +19,16 @@
         </div>
       </div>
 
+      <!-- Mode Switcher Tabs (Guard Terminal vs Owner Analytics) -->
+      <div class="nav-switch-deck">
+        <button [class.btn-tab-active]="activeTab() === 'TERMINAL'" (click)="switchTab('TERMINAL')">
+          Gate Terminal (Guard)
+        </button>
+        <button [class.btn-tab-active]="activeTab() === 'ANALYTICS'" (click)="switchTab('ANALYTICS')">
+          Owner Audit & Logs
+        </button>
+      </div>
+
       <!-- Quick Metrics Header -->
       <div class="stats-ribbon">
         <div class="ribbon-card">
@@ -54,235 +64,323 @@
       </div>
     </header>
 
-    <!-- Main Working Grid -->
-    <div class="grid-layout">
-      
-      <!-- Left Column: Floorplan Visual Parking Area -->
-      <section class="parking-section">
+    <!-- TAB 1: GUARD GATE TERMINAL VIEW -->
+    @if (activeTab() === 'TERMINAL') {
+      <div class="grid-layout">
         
-        <!-- Ground Floor -->
-        <div class="level-card">
-          <div class="level-head">
-            <div class="level-title">
-              <span class="level-indicator bg-blue"></span>
-              <h3>Ground Floor (Level 0)</h3>
+        <!-- Left: Floorplan Grid (Interactive Click-to-Park) -->
+        <section class="parking-section">
+          
+          <!-- Ground Floor -->
+          <div class="level-card">
+            <div class="level-head">
+              <div class="level-title">
+                <span class="level-indicator bg-blue"></span>
+                <h3>Ground Floor (Level 0)</h3>
+              </div>
+              <span class="level-meta">EV Fast Chargers & Prime Bays • Click to Quick-Assign</span>
             </div>
-            <span class="level-meta">EV Fast Chargers & Prime Bays</span>
-          </div>
 
-          <div class="bay-rack">
-            @for (slot of groundFloorSlots(); track slot.id) {
-              <div class="bay-slot" [class.bay-occupied]="slot.status === 'OCCUPIED'" [class.bay-available]="slot.status === 'AVAILABLE'">
-                <div class="bay-line-top"></div>
-                <div class="bay-inner">
-                  <div class="bay-head">
-                    <span class="bay-id">{{ slot.id }}</span>
-                    
-                    <!-- Primary, Success, Warning Badges -->
-                    @if (slot.type === 'REGULAR') {
-                      <span class="type-chip chip-regular">REGULAR</span>
-                    } @else if (slot.type === 'EV') {
-                      <span class="type-chip chip-ev">EV</span>
-                    } @else if (slot.type === 'VIP') {
-                      <span class="type-chip chip-vip">VIP</span>
-                    }
-                  </div>
+            <div class="bay-rack">
+              @for (slot of groundFloorSlots(); track slot.id) {
+                <div class="bay-slot clickable-bay" 
+                     [class.bay-occupied]="slot.status === 'OCCUPIED'" 
+                     [class.bay-available]="slot.status === 'AVAILABLE'"
+                     [class.bay-selected]="selectedSlotId() === slot.id"
+                     (click)="onSlotClick(slot)"
+                     title="{{ slot.status === 'AVAILABLE' ? 'Click to select this bay' : 'Click to checkout vehicle ' + slot.currentVehicle }}">
+                  <div class="bay-line-top"></div>
+                  <div class="bay-inner">
+                    <div class="bay-head">
+                      <span class="bay-id">{{ slot.id }}</span>
+                      @if (slot.type === 'REGULAR') {
+                        <span class="type-chip chip-regular">REGULAR</span>
+                      } @else if (slot.type === 'EV') {
+                        <span class="type-chip chip-ev">EV</span>
+                      } @else if (slot.type === 'VIP') {
+                        <span class="type-chip chip-vip">VIP</span>
+                      }
+                    </div>
 
-                  <div class="bay-body">
-                    @if (slot.status === 'OCCUPIED') {
-                      <div class="vehicle-pill">
-                        <span class="car-ico">🚗</span>
-                        <span class="vehicle-no">{{ slot.currentVehicle }}</span>
-                      </div>
-                    } @else {
-                      <div class="status-available">
-                        <span class="dot-green"></span>
-                        <span class="status-txt">AVAILABLE</span>
-                      </div>
-                    }
-                  </div>
+                    <div class="bay-body">
+                      @if (slot.status === 'OCCUPIED') {
+                        <div class="vehicle-pill">
+                          <span class="car-ico">🚗</span>
+                          <span class="vehicle-no">{{ slot.currentVehicle }}</span>
+                        </div>
+                      } @else {
+                        <div class="status-available">
+                          <span class="dot-green"></span>
+                          <span class="status-txt">AVAILABLE</span>
+                        </div>
+                      }
+                    </div>
 
-                  <div class="bay-foot">
-                    @if (slot.status === 'OCCUPIED') {
-                      <span class="price-locked">🔒 ₹{{ slot.lockedRatePerHour }}/hr</span>
-                    } @else {
-                      <span class="price-live">₹{{ slot.currentDynamicRate }}<small>/hr</small></span>
-                    }
+                    <div class="bay-foot">
+                      @if (slot.status === 'OCCUPIED') {
+                        <span class="price-locked">🔒 ₹{{ slot.lockedRatePerHour }}/hr</span>
+                      } @else {
+                        <span class="price-live">₹{{ slot.currentDynamicRate }}<small>/hr</small></span>
+                      }
+                    </div>
                   </div>
                 </div>
-              </div>
-            }
-          </div>
-        </div>
-
-        <!-- Basement (B1) -->
-        <div class="level-card">
-          <div class="level-head">
-            <div class="level-title">
-              <span class="level-indicator bg-indigo"></span>
-              <h3>Basement (Level -1)</h3>
+              }
             </div>
-            <span class="level-meta">Standard Bays & VIP Bay</span>
           </div>
 
-          <div class="bay-rack">
-            @for (slot of basementSlots(); track slot.id) {
-              <div class="bay-slot" [class.bay-occupied]="slot.status === 'OCCUPIED'" [class.bay-available]="slot.status === 'AVAILABLE'">
-                <div class="bay-line-top"></div>
-                <div class="bay-inner">
-                  <div class="bay-head">
-                    <span class="bay-id">{{ slot.id }}</span>
-                    
-                    <!-- Primary, Success, Warning Badges -->
-                    @if (slot.type === 'REGULAR') {
-                      <span class="type-chip chip-regular">REGULAR</span>
-                    } @else if (slot.type === 'EV') {
-                      <span class="type-chip chip-ev">EV</span>
-                    } @else if (slot.type === 'VIP') {
-                      <span class="type-chip chip-vip">VIP</span>
-                    }
-                  </div>
+          <!-- Basement (B1) -->
+          <div class="level-card">
+            <div class="level-head">
+              <div class="level-title">
+                <span class="level-indicator bg-indigo"></span>
+                <h3>Basement (Level -1)</h3>
+              </div>
+              <span class="level-meta">Standard Bays & VIP Bay • Click to Quick-Assign</span>
+            </div>
 
-                  <div class="bay-body">
-                    @if (slot.status === 'OCCUPIED') {
-                      <div class="vehicle-pill">
-                        <span class="car-ico">🚗</span>
-                        <span class="vehicle-no">{{ slot.currentVehicle }}</span>
-                      </div>
-                    } @else {
-                      <div class="status-available">
-                        <span class="dot-green"></span>
-                        <span class="status-txt">AVAILABLE</span>
-                      </div>
-                    }
-                  </div>
+            <div class="bay-rack">
+              @for (slot of basementSlots(); track slot.id) {
+                <div class="bay-slot clickable-bay" 
+                     [class.bay-occupied]="slot.status === 'OCCUPIED'" 
+                     [class.bay-available]="slot.status === 'AVAILABLE'"
+                     [class.bay-selected]="selectedSlotId() === slot.id"
+                     (click)="onSlotClick(slot)"
+                     title="{{ slot.status === 'AVAILABLE' ? 'Click to select this bay' : 'Click to checkout vehicle ' + slot.currentVehicle }}">
+                  <div class="bay-line-top"></div>
+                  <div class="bay-inner">
+                    <div class="bay-head">
+                      <span class="bay-id">{{ slot.id }}</span>
+                      @if (slot.type === 'REGULAR') {
+                        <span class="type-chip chip-regular">REGULAR</span>
+                      } @else if (slot.type === 'EV') {
+                        <span class="type-chip chip-ev">EV</span>
+                      } @else if (slot.type === 'VIP') {
+                        <span class="type-chip chip-vip">VIP</span>
+                      }
+                    </div>
 
-                  <div class="bay-foot">
-                    @if (slot.status === 'OCCUPIED') {
-                      <span class="price-locked">🔒 ₹{{ slot.lockedRatePerHour }}/hr</span>
-                    } @else {
-                      <span class="price-live">₹{{ slot.currentDynamicRate }}<small>/hr</small></span>
-                    }
+                    <div class="bay-body">
+                      @if (slot.status === 'OCCUPIED') {
+                        <div class="vehicle-pill">
+                          <span class="car-ico">🚗</span>
+                          <span class="vehicle-no">{{ slot.currentVehicle }}</span>
+                        </div>
+                      } @else {
+                        <div class="status-available">
+                          <span class="dot-green"></span>
+                          <span class="status-txt">AVAILABLE</span>
+                        </div>
+                      }
+                    </div>
+
+                    <div class="bay-foot">
+                      @if (slot.status === 'OCCUPIED') {
+                        <span class="price-locked">🔒 ₹{{ slot.lockedRatePerHour }}/hr</span>
+                      } @else {
+                        <span class="price-live">₹{{ slot.currentDynamicRate }}<small>/hr</small></span>
+                      }
+                    </div>
                   </div>
                 </div>
+              }
+            </div>
+          </div>
+
+        </section>
+
+        <!-- Right: Control Deck -->
+        <aside class="terminal-deck">
+          
+          <!-- Gate 1: Check-in -->
+          <div class="gate-card">
+            <div class="gate-header">
+              <div class="gate-badge bg-soft-blue">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 5v14M5 12l7 7 7-7"/></svg>
               </div>
-            }
-          </div>
-        </div>
-
-      </section>
-
-      <!-- Right Column: Control Deck -->
-      <aside class="terminal-deck">
-        
-        <!-- Gate 1: Check-in -->
-        <div class="gate-card">
-          <div class="gate-header">
-            <div class="gate-badge bg-soft-blue">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 5v14M5 12l7 7 7-7"/></svg>
-            </div>
-            <div>
-              <h4>Gate 1: Entry Check-in</h4>
-              <p>Vehicle scan & automated bay allocation</p>
-            </div>
-          </div>
-
-          <div class="gate-body">
-            <div class="field-item">
-              <label>Vehicle License Plate</label>
-              <input 
-                type="text" 
-                placeholder="e.g. MH-01-AB-1234" 
-                [ngModel]="vehicleNo()" 
-                (ngModelChange)="vehicleNo.set($event)" />
+              <div>
+                <h4>Gate 1: Entry Check-in</h4>
+                <p>Vehicle scan & bay allocation</p>
+              </div>
             </div>
 
-            <div class="field-item">
-              <label>Vehicle Category</label>
-              <select [ngModel]="selectedType()" (ngModelChange)="onTypeChange($event)">
-                <option value="REGULAR">Regular Sedan / Hatchback</option>
-                <option value="EV">Electric Vehicle (EV Charging)</option>
-                <option value="VIP">VIP & Executive Bay</option>
-              </select>
-            </div>
+            <div class="gate-body">
+              <div class="field-item">
+                <label>Vehicle License Plate</label>
+                <input 
+                  type="text" 
+                  placeholder="e.g. MH-01-AB-1234" 
+                  [ngModel]="vehicleNo()" 
+                  (ngModelChange)="vehicleNo.set($event)" />
+              </div>
 
-            <div class="field-item">
-              <label>Bay Preference</label>
-              <select [ngModel]="selectedSlotId()" (ngModelChange)="selectedSlotId.set($event)">
-                <option value="">⚡ Auto-assign (Best Rate First)</option>
-                @for (bay of matchingAvailableBays(); track bay.id) {
-                  <option [value]="bay.id">
-                    Bay {{ bay.id }} ({{ bay.floor }}) — ₹{{ bay.currentDynamicRate }}/hr
-                  </option>
+              <div class="field-item">
+                <label>Vehicle Category</label>
+                <select [ngModel]="selectedType()" (ngModelChange)="onTypeChange($event)">
+                  <option value="REGULAR">Regular Sedan / Hatchback</option>
+                  <option value="EV">Electric Vehicle (EV Charging)</option>
+                  <option value="VIP">VIP & Executive Bay</option>
+                </select>
+              </div>
+
+              <div class="field-item">
+                <label>Bay Preference</label>
+                <select [ngModel]="selectedSlotId()" (ngModelChange)="selectedSlotId.set($event)">
+                  <option value="">⚡ Auto-assign (Best Rate First)</option>
+                  @for (bay of matchingAvailableBays(); track bay.id) {
+                    <option [value]="bay.id">
+                      Bay {{ bay.id }} ({{ bay.floor }}) — ₹{{ bay.currentDynamicRate }}/hr
+                    </option>
+                  }
+                </select>
+                @if (matchingAvailableBays().length === 0) {
+                  <span class="err-text">No {{ selectedType() }} bays vacant!</span>
                 }
-              </select>
-              @if (matchingAvailableBays().length === 0) {
-                <span class="err-text">No {{ selectedType() }} bays vacant!</span>
-              }
+              </div>
+
+              <button class="btn btn-entry" (click)="onBook()">
+                Authorize Entry & Allocate Bay
+              </button>
+            </div>
+          </div>
+
+          <!-- Gate 2: Checkout -->
+          <div class="gate-card">
+            <div class="gate-header">
+              <div class="gate-badge bg-soft-rose">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 19V5M5 12l7-7 7 7"/></svg>
+              </div>
+              <div>
+                <h4>Gate 2: Checkout & Exit</h4>
+                <p>Calculate tariff & release barrier</p>
+              </div>
             </div>
 
-            <button class="btn btn-entry" (click)="onBook()">
-              Authorize Entry & Allocate Bay
-            </button>
+            <div class="gate-body">
+              <div class="field-item">
+                <label>Vehicle License Plate</label>
+                <input 
+                  type="text" 
+                  placeholder="Enter plate number" 
+                  [ngModel]="exitVehicleNo()" 
+                  (ngModelChange)="exitVehicleNo.set($event)" />
+              </div>
+
+              <button class="btn btn-exit" (click)="onExit()">
+                Calculate Bill & Release Bay
+              </button>
+            </div>
+          </div>
+
+          <!-- Receipt Box -->
+          @if (latestReceipt(); as receipt) {
+            <div class="voucher-box">
+              <div class="voucher-top">
+                <span class="voucher-badge">PAID</span>
+                <h5>PARKING CLEARANCE RECEIPT</h5>
+              </div>
+
+              <div class="voucher-grid">
+                <div class="v-line"><span>Vehicle</span><strong>{{ receipt.vehicleNo }}</strong></div>
+                <div class="v-line"><span>Bay</span><strong>Bay {{ receipt.slotId }}</strong></div>
+                <div class="v-line"><span>Entry</span><span>{{ receipt.entryTime }}</span></div>
+                <div class="v-line"><span>Exit</span><span>{{ receipt.exitTime }}</span></div>
+                <div class="v-line"><span>Stay Duration</span><span>{{ receipt.durationMinutes }} min(s)</span></div>
+
+                @if (receipt.isGracePeriod) {
+                  <div class="grace-box">✓ Free Grace Period (&lt; 15 mins) Applied</div>
+                  <div class="v-total"><span>TOTAL CHARGE</span><strong class="green-price">₹0</strong></div>
+                } @else {
+                  <div class="v-line"><span>Billed Duration</span><span>{{ receipt.billableHours }} hr(s) &#64; ₹{{ receipt.lockedEntryRate }}/hr</span></div>
+                  <div class="v-total"><span>TOTAL CHARGE</span><strong>₹{{ receipt.totalAmount }}</strong></div>
+                }
+              </div>
+            </div>
+          }
+
+        </aside>
+
+      </div>
+    }
+
+    <!-- TAB 2: OWNER AUDIT & FINANCIAL ANALYTICS VIEW -->
+    @if (activeTab() === 'ANALYTICS') {
+      <div class="analytics-deck">
+        
+        <!-- Summary Financial Stats -->
+        <div class="financial-summary-row">
+          <div class="fin-card">
+            <span class="fin-label">Total Realized Revenue</span>
+            <h2 class="fin-value green-text">₹{{ totalRevenue() }}</h2>
+            <span class="fin-sub">Lifetime earnings from parking operations</span>
+          </div>
+
+          <div class="fin-card">
+            <span class="fin-label">Vehicles Serviced</span>
+            <h2 class="fin-value">{{ totalVehiclesHandled() }}</h2>
+            <span class="fin-sub">Total checkouts completed</span>
+          </div>
+
+          <div class="fin-card">
+            <span class="fin-label">Avg Tariff per Paid Car</span>
+            <h2 class="fin-value">
+              ₹{{ avgTariff() }}
+            </h2>
+            <span class="fin-sub">Across Ground & Basement floors</span>
           </div>
         </div>
 
-        <!-- Gate 2: Checkout -->
-        <div class="gate-card">
-          <div class="gate-header">
-            <div class="gate-badge bg-soft-rose">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 19V5M5 12l7-7 7 7"/></svg>
-            </div>
-            <div>
-              <h4>Gate 2: Checkout & Exit</h4>
-              <p>Calculate stay tariff & release barrier</p>
-            </div>
+        <!-- Historical Transaction Log Table -->
+        <div class="table-container-card">
+          <div class="table-card-head">
+            <h3>Date-wise Parking Activity Logs</h3>
+            <button class="btn-refresh-sm" (click)="parkingService.fetchLogs()">↻ Refresh Data</button>
           </div>
 
-          <div class="gate-body">
-            <div class="field-item">
-              <label>Vehicle License Plate</label>
-              <input 
-                type="text" 
-                placeholder="Enter plate number" 
-                [ngModel]="exitVehicleNo()" 
-                (ngModelChange)="exitVehicleNo.set($event)" />
-            </div>
-
-            <button class="btn btn-exit" (click)="onExit()">
-              Calculate Bill & Release Bay
-            </button>
+          <div class="table-responsive">
+            <table class="audit-table">
+              <thead>
+                <tr>
+                  <th>Date & Time</th>
+                  <th>Vehicle No</th>
+                  <th>Floor & Bay</th>
+                  <th>Category</th>
+                  <th>Duration</th>
+                  <th>Grace Period</th>
+                  <th>Rate/Hr</th>
+                  <th>Total Billed</th>
+                </tr>
+              </thead>
+              <tbody>
+                @for (log of parkingService.logs(); track log._id) {
+                  <tr>
+                    <td>{{ log.createdAt | date:'short' }}</td>
+                    <td><strong class="plate-text">{{ log.vehicleNo }}</strong></td>
+                    <td>{{ log.floor }} ({{ log.slotId }})</td>
+                    <td><span class="chip-sm">{{ log.type }}</span></td>
+                    <td>{{ log.durationMinutes }} min(s)</td>
+                    <td>
+                      @if (log.isGracePeriod) {
+                        <span class="tag-free">Yes (Free)</span>
+                      } @else {
+                        <span class="tag-no">No</span>
+                      }
+                    </td>
+                    <td>₹{{ log.ratePerHour }}</td>
+                    <td><strong class="billed-amt">₹{{ log.totalAmount }}</strong></td>
+                  </tr>
+                } @empty {
+                  <tr>
+                    <td colspan="8" class="text-center-empty">No checkout records available yet. Complete a checkout to populate history logs.</td>
+                  </tr>
+                }
+              </tbody>
+            </table>
           </div>
         </div>
 
-        <!-- Receipt Print Box -->
-        @if (latestReceipt(); as receipt) {
-          <div class="voucher-box">
-            <div class="voucher-top">
-              <span class="voucher-badge">PAID</span>
-              <h5>PARKING CLEARANCE RECEIPT</h5>
-            </div>
+      </div>
+    }
 
-            <div class="voucher-grid">
-              <div class="v-line"><span>Vehicle</span><strong>{{ receipt.vehicleNo }}</strong></div>
-              <div class="v-line"><span>Bay</span><strong>Bay {{ receipt.slotId }}</strong></div>
-              <div class="v-line"><span>Entry</span><span>{{ receipt.entryTime }}</span></div>
-              <div class="v-line"><span>Exit</span><span>{{ receipt.exitTime }}</span></div>
-              <div class="v-line"><span>Stay Duration</span><span>{{ receipt.durationMinutes }} min(s)</span></div>
-
-              @if (receipt.isGracePeriod) {
-                <div class="grace-box">✓ Free Grace Period (&lt; 15 mins) Applied</div>
-                <div class="v-total"><span>TOTAL CHARGE</span><strong class="green-price">₹0</strong></div>
-              } @else {
-                <div class="v-line"><span>Billed Duration</span><span>{{ receipt.billableHours }} hr(s) &#64; ₹{{ receipt.lockedEntryRate }}/hr</span></div>
-                <div class="v-total"><span>TOTAL CHARGE</span><strong>₹{{ receipt.totalAmount }}</strong></div>
-              }
-            </div>
-          </div>
-        }
-
-      </aside>
-
-    </div>
   </div>
 </div>
