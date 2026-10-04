@@ -7,19 +7,21 @@ const ParkingLog = require("./models/ParkingLog");
 
 const app = express();
 
+// Middlewares
 app.use(cors());
 app.use(express.json());
 
+// Database connection
 connectDB();
 
-// Dynamic surge multiplier calculation
+// Helper to determine dynamic tariff multiplier
 const getDynamicMultiplier = (occupancyPercent) => {
   if (occupancyPercent >= 75) return 1.5;
   if (occupancyPercent >= 50) return 1.25;
   return 1.0;
 };
 
-// 1. GET /api/slots - Fetch all slots mapped for Angular
+// 1. GET /api/slots - Fetch all parking bays formatted for Angular client
 app.get("/api/slots", async (req, res) => {
   try {
     const rawSlots = await Slot.find().sort({ level: 1, slotId: 1 }).lean();
@@ -32,7 +34,7 @@ app.get("/api/slots", async (req, res) => {
     const data = rawSlots.map((s) => {
       const base = s.baseRate || 40;
       const dynamicRate = Math.round(base * multiplier);
-      const isOccupied = !!s.isOccupied;
+      const isOccupied = Boolean(s.isOccupied);
 
       return {
         id: s.slotId,
@@ -52,25 +54,27 @@ app.get("/api/slots", async (req, res) => {
     });
   } catch (error) {
     console.error("Fetch slots error:", error);
-    res.status(500).json({ success: false, message: "Slots fetch error" });
+    res.status(500).json({ success: false, message: "Internal server error while fetching bays." });
   }
 });
 
-// 2. POST /api/book-slot - Gate 1 Entry Check-in
+// 2. POST /api/book-slot - Gate 1 Entry Check-in & Bay Allocation
 app.post("/api/book-slot", async (req, res) => {
   try {
     const { vehicleNo, type, preferredSlotId } = req.body;
 
     if (!vehicleNo) {
-      return res.status(400).json({ success: false, message: "Vehicle license plate zaroori hai." });
+      return res.status(400).json({ success: false, message: "Vehicle license plate is required." });
     }
 
     let targetSlot = null;
 
+    // Check if the user selected a preferred slot
     if (preferredSlotId) {
       targetSlot = await Slot.findOne({ slotId: preferredSlotId, isOccupied: false });
     }
 
+    // Auto-assignment fallback logic
     if (!targetSlot) {
       const searchType = (type || "REGULAR").toUpperCase();
       targetSlot = await Slot.findOne({ type: searchType, isOccupied: false });
@@ -81,7 +85,7 @@ app.post("/api/book-slot", async (req, res) => {
     }
 
     if (!targetSlot) {
-      return res.status(404).json({ success: false, message: `Koi ${type || "REGULAR"} bay vacant nahi hai!` });
+      return res.status(404).json({ success: false, message: `No vacant bays available for category: ${type || "REGULAR"}` });
     }
 
     targetSlot.isOccupied = true;
@@ -91,7 +95,7 @@ app.post("/api/book-slot", async (req, res) => {
 
     res.json({
       success: true,
-      message: `Bay ${targetSlot.slotId} successfully allocate ho gayi.`,
+      message: `Bay ${targetSlot.slotId} successfully allocated.`,
       session: {
         id: targetSlot.slotId,
         vehicleNo: targetSlot.vehicleNumber,
@@ -99,25 +103,25 @@ app.post("/api/book-slot", async (req, res) => {
       },
     });
   } catch (error) {
-    console.error("Book error:", error);
-    res.status(500).json({ success: false, message: "Booking process failed." });
+    console.error("Booking error:", error);
+    res.status(500).json({ success: false, message: "Failed to allocate parking bay." });
   }
 });
 
-// 3. POST /api/exit-slot - Gate 2 Checkout, Receipt & History Log Save
+// 3. POST /api/exit-slot - Gate 2 Checkout, Fee Computation & Audit Logging
 app.post("/api/exit-slot", async (req, res) => {
   try {
     const { vehicleNo } = req.body;
 
     if (!vehicleNo) {
-      return res.status(400).json({ success: false, message: "Vehicle plate number enter kijiye." });
+      return res.status(400).json({ success: false, message: "Vehicle license plate is required." });
     }
 
     const cleanVehicleNo = vehicleNo.trim().toUpperCase();
     const slot = await Slot.findOne({ vehicleNumber: cleanVehicleNo, isOccupied: true });
 
     if (!slot) {
-      return res.status(404).json({ success: false, message: `Gaadi ${cleanVehicleNo} parking me nahi mili!` });
+      return res.status(404).json({ success: false, message: `Active session not found for vehicle: ${cleanVehicleNo}` });
     }
 
     const exitTime = new Date();
@@ -125,13 +129,14 @@ app.post("/api/exit-slot", async (req, res) => {
     const diffMs = Math.max(0, exitTime - entryTime);
     const durationMinutes = Math.max(1, Math.round(diffMs / (1000 * 60)));
 
+    // Free grace period if stay is 15 minutes or less
     const isGracePeriod = durationMinutes <= 15;
     const billableHours = Math.max(1, Math.ceil(durationMinutes / 60));
     const lockedEntryRate = slot.baseRate || 40;
     const totalAmount = isGracePeriod ? 0 : billableHours * lockedEntryRate;
     const floor = slot.level === 0 ? "Ground" : "B1";
 
-    // Permanent Date-wise History Record MongoDB Atlas mein save karein
+    // Persist permanent audit transaction
     await ParkingLog.create({
       vehicleNo: cleanVehicleNo,
       slotId: slot.slotId,
@@ -146,7 +151,7 @@ app.post("/api/exit-slot", async (req, res) => {
       isGracePeriod,
     });
 
-    // Slot ko dobara agle user ke liye free karein
+    // Reset bay status for next arrival
     slot.isOccupied = false;
     slot.vehicleNumber = null;
     slot.entryTime = null;
@@ -167,12 +172,12 @@ app.post("/api/exit-slot", async (req, res) => {
       },
     });
   } catch (error) {
-    console.error("Exit error:", error);
-    res.status(500).json({ success: false, message: "Checkout failed." });
+    console.error("Exit processing error:", error);
+    res.status(500).json({ success: false, message: "Failed to process parking clearance." });
   }
 });
 
-// 4. GET /api/logs - View All Historical Parking Records (Date-wise)
+// 4. GET /api/logs - Fetch permanent historical parking records
 app.get("/api/logs", async (req, res) => {
   try {
     const logs = await ParkingLog.find().sort({ createdAt: -1 });
@@ -183,7 +188,7 @@ app.get("/api/logs", async (req, res) => {
     });
   } catch (error) {
     console.error("Fetch logs error:", error);
-    res.status(500).json({ success: false, message: "Logs fetch error" });
+    res.status(500).json({ success: false, message: "Internal server error while fetching audit logs." });
   }
 });
 

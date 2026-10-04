@@ -50,7 +50,7 @@ const parkingLogSchema = new mongoose.Schema(
     },
   },
   {
-    timestamps: true, // isse createdAt aur updatedAt date-wise automatically save hote rahenge
+    timestamps: true, // Automatically manages createdAt and updatedAt fields
   }
 );
 

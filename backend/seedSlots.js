@@ -16,19 +16,19 @@ const initialSlots = [
 const seedDB = async () => {
   try {
     await mongoose.connect(process.env.MONGO_URI);
-    console.log("Connected to MongoDB Atlas for seeding...");
+    console.log("Connected to MongoDB Atlas for slot seeding...");
 
-    // Pehle existing slots clean karein taaki duplicate na banein
+    // Remove existing slots to avoid duplicates
     await Slot.deleteMany({});
-    console.log("Cleared existing slots.");
+    console.log("Existing parking slots cleared.");
 
-    // Initial slots insert karein
+    // Insert predefined parking bays
     await Slot.insertMany(initialSlots);
-    console.log("All slots seeded successfully into MongoDB Atlas!");
+    console.log("All parking bays successfully seeded into MongoDB Atlas.");
 
     process.exit(0);
   } catch (error) {
-    console.error("Seeding error:", error);
+    console.error("Slot seeding failed:", error);
     process.exit(1);
   }
 };
