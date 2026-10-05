@@ -1,4 +1,4 @@
-# ParkFlow — Smart Bay Allocation & Dynamic Pricing Engine
+# ParkPulse — Smart Bay Allocation & Dynamic Pricing Engine
 
 An enterprise-grade smart parking management system featuring real-time bay allocation, dynamic surge pricing, multi-client live synchronization, and historical transaction auditing.
 
@@ -6,7 +6,7 @@ An enterprise-grade smart parking management system featuring real-time bay allo
 
 ## System Overview
 
-**ParkFlow** is designed to streamline commercial vehicle parking operations across high-density facilities such as shopping malls, business parks, transit hubs, and airports. The platform replaces traditional manual slip distribution with an automated operational workflow for barrier operators while delivering financial audit analytics for facility owners.
+**ParkPulse** is designed to streamline commercial vehicle parking operations across high-density facilities such as shopping malls, business parks, transit hubs, and airports. The platform replaces traditional manual slip distribution with an automated operational workflow for barrier operators while delivering financial audit analytics for facility owners.
 
 ---
 
