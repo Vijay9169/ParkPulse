@@ -1,7 +1,7 @@
 <div class="app-viewport">
   <div class="dashboard-wrapper">
     
-    <!-- Top Modern Bar -->
+    <!-- Top Bar -->
     <header class="app-topbar">
       <div class="brand-zone">
         <div class="logo-box">
@@ -19,7 +19,7 @@
         </div>
       </div>
 
-      <!-- Mode Switcher Tabs (Guard Terminal vs Owner Analytics) -->
+      <!-- Mode Switcher Tabs -->
       <div class="nav-switch-deck">
         <button [class.btn-tab-active]="activeTab() === 'TERMINAL'" (click)="switchTab('TERMINAL')">
           Gate Terminal (Guard)
@@ -29,7 +29,7 @@
         </button>
       </div>
 
-      <!-- Quick Metrics Header -->
+      <!-- Quick Metrics Ribbon -->
       <div class="stats-ribbon">
         <div class="ribbon-card">
           <span class="rc-label">Total Bays</span>
@@ -68,7 +68,7 @@
     @if (activeTab() === 'TERMINAL') {
       <div class="grid-layout">
         
-        <!-- Left: Floorplan Grid (Interactive Click-to-Park) -->
+        <!-- Floorplan Section -->
         <section class="parking-section">
           
           <!-- Ground Floor -->
@@ -189,7 +189,7 @@
 
         </section>
 
-        <!-- Right: Control Deck -->
+        <!-- Right Side: Gate Terminals & Receipt -->
         <aside class="terminal-deck">
           
           <!-- Gate 1: Check-in -->
@@ -272,11 +272,17 @@
             </div>
           </div>
 
-          <!-- Receipt Box -->
+          <!-- Feature 1 & 2: Receipt Slip with UPI QR & Print Option -->
           @if (latestReceipt(); as receipt) {
-            <div class="voucher-box">
+            <div class="voucher-box" id="printableReceipt">
               <div class="voucher-top">
-                <span class="voucher-badge">PAID</span>
+                @if (receipt.isGracePeriod) {
+                  <span class="voucher-badge badge-free">FREE WAIVED</span>
+                } @else if (isPaymentSettled()) {
+                  <span class="voucher-badge badge-paid">PAID</span>
+                } @else {
+                  <span class="voucher-badge badge-due">PAYMENT DUE</span>
+                }
                 <h5>PARKING CLEARANCE RECEIPT</h5>
               </div>
 
@@ -292,9 +298,34 @@
                   <div class="v-total"><span>TOTAL CHARGE</span><strong class="green-price">₹0</strong></div>
                 } @else {
                   <div class="v-line"><span>Billed Duration</span><span>{{ receipt.billableHours }} hr(s) &#64; ₹{{ receipt.lockedEntryRate }}/hr</span></div>
-                  <div class="v-total"><span>TOTAL CHARGE</span><strong>₹{{ receipt.totalAmount }}</strong></div>
+                  <div class="v-total">
+                    <span>TOTAL CHARGE</span>
+                    <strong>₹{{ receipt.totalAmount }}</strong>
+                  </div>
+
+                  @if (!isPaymentSettled()) {
+                    <!-- Dynamic UPI QR Display for Cashless Payment -->
+                    <div class="qr-container">
+                      <span class="qr-label">Scan to Pay via UPI (GPay / PhonePe)</span>
+                      <img [src]="getUpiQrUrl(receipt.totalAmount, receipt.vehicleNo)" alt="UPI Payment QR Code" class="upi-qr" />
+                    </div>
+
+                    <div class="voucher-actions no-print">
+                      <button class="btn-confirm-pay" (click)="confirmPaymentReceived()">
+                        ✓ Confirm Payment Received
+                      </button>
+                    </div>
+                  }
                 }
               </div>
+
+              @if (isPaymentSettled()) {
+                <div class="voucher-actions no-print">
+                  <button class="btn-print" (click)="printReceipt()">
+                    🖨️ Print Receipt Slip
+                  </button>
+                </div>
+              }
             </div>
           }
 
@@ -323,18 +354,42 @@
 
           <div class="fin-card">
             <span class="fin-label">Avg Tariff per Paid Car</span>
-            <h2 class="fin-value">
-              ₹{{ avgTariff() }}
-            </h2>
+            <h2 class="fin-value">₹{{ avgTariff() }}</h2>
             <span class="fin-sub">Across Ground & Basement floors</span>
           </div>
         </div>
 
-        <!-- Historical Transaction Log Table -->
+        <!-- Historical Transaction Log Table with Feature 3: Search & Filters -->
         <div class="table-container-card">
           <div class="table-card-head">
             <h3>Date-wise Parking Activity Logs</h3>
-            <button class="btn-refresh-sm" (click)="parkingService.fetchLogs()">↻ Refresh Data</button>
+            <div class="table-actions-deck">
+              <button class="btn-refresh-sm" (click)="parkingService.fetchLogs()">↻ Refresh Data</button>
+            </div>
+          </div>
+
+          <!-- Feature 3: Filter Toolbar -->
+          <div class="filter-toolbar">
+            <div class="filter-item">
+              <label>Search by Plate or Bay</label>
+              <input 
+                type="text" 
+                placeholder="Search plate or bay..." 
+                [ngModel]="searchQuery()" 
+                (ngModelChange)="searchQuery.set($event)" />
+            </div>
+
+            <div class="filter-item">
+              <label>Filter by Date</label>
+              <input 
+                type="date" 
+                [ngModel]="selectedFilterDate()" 
+                (ngModelChange)="selectedFilterDate.set($event)" />
+            </div>
+
+            @if (searchQuery() || selectedFilterDate()) {
+              <button class="btn-reset-filters" (click)="resetFilters()">Clear Filters</button>
+            }
           </div>
 
           <div class="table-responsive">
@@ -352,7 +407,7 @@
                 </tr>
               </thead>
               <tbody>
-                @for (log of parkingService.logs(); track log._id) {
+                @for (log of filteredLogs(); track log._id) {
                   <tr>
                     <td>{{ log.createdAt | date:'short' }}</td>
                     <td><strong class="plate-text">{{ log.vehicleNo }}</strong></td>
@@ -371,7 +426,9 @@
                   </tr>
                 } @empty {
                   <tr>
-                    <td colspan="8" class="text-center-empty">No checkout records available yet. Complete a checkout to populate history logs.</td>
+                    <td colspan="8" class="text-center-empty">
+                      No parking records found matching your filters.
+                    </td>
                   </tr>
                 }
               </tbody>

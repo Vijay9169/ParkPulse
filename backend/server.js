@@ -130,7 +130,7 @@ app.post("/api/exit-slot", async (req, res) => {
     const durationMinutes = Math.max(1, Math.round(diffMs / (1000 * 60)));
 
     // Free grace period if stay is 15 minutes or less
-    const isGracePeriod = durationMinutes <= 15;
+    const isGracePeriod = durationMinutes <= 5;
     const billableHours = Math.max(1, Math.ceil(durationMinutes / 60));
     const lockedEntryRate = slot.baseRate || 40;
     const totalAmount = isGracePeriod ? 0 : billableHours * lockedEntryRate;

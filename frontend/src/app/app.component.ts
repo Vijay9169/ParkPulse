@@ -13,17 +13,21 @@ import { ParkingService, ParkingSlot, ParkingLog } from './parking.service';
 export class AppComponent implements OnInit, OnDestroy {
   parkingService = inject(ParkingService);
 
-  // Active View: 'TERMINAL' (Guard View) ya 'ANALYTICS' (Owner View)
+  // Active view mode: 'TERMINAL' (Guard View) or 'ANALYTICS' (Owner View)
   activeTab = signal<'TERMINAL' | 'ANALYTICS'>('TERMINAL');
 
-  // Form Signals
+  // Terminal signals
   vehicleNo = signal<string>('');
   selectedType = signal<string>('REGULAR');
   selectedSlotId = signal<string>('');
   exitVehicleNo = signal<string>('');
   latestReceipt = signal<any>(null);
 
-  // Computed Metrics
+  // Search and Filter signals for Owner Audit View
+  searchQuery = signal<string>('');
+  selectedFilterDate = signal<string>('');
+
+  // Computed metrics
   totalSlots = computed(() => this.parkingService.slots().length);
   availableSlots = computed(() => 
     this.parkingService.slots().filter(s => s.status === 'AVAILABLE').length
@@ -34,19 +38,40 @@ export class AppComponent implements OnInit, OnDestroy {
     return Math.round(((total - this.availableSlots()) / total) * 100);
   });
 
-  // Owner Financial Analytics
-  totalRevenue = computed(() => 
-    this.parkingService.logs().reduce((sum, log) => sum + (log.totalAmount || 0), 0)
-  );
-  totalVehiclesHandled = computed(() => this.parkingService.logs().length);
+  // Filtered Logs Computation
+  filteredLogs = computed(() => {
+    let records = this.parkingService.logs();
+    const query = this.searchQuery().trim().toUpperCase();
+    const date = this.selectedFilterDate();
 
-  // Naya computed property add karein
+    if (query) {
+      records = records.filter(log => 
+        log.vehicleNo.includes(query) || log.slotId.includes(query)
+      );
+    }
+
+    if (date) {
+      records = records.filter(log => {
+        const logDate = new Date(log.createdAt).toISOString().split('T')[0];
+        return logDate === date;
+      });
+    }
+
+    return records;
+  });
+
+  // Owner Financial Analytics (Real-time and filtered)
+  totalRevenue = computed(() => 
+    this.filteredLogs().reduce((sum, log) => sum + (log.totalAmount || 0), 0)
+  );
+  totalVehiclesHandled = computed(() => this.filteredLogs().length);
+
   avgTariff = computed(() => {
     const total = this.totalVehiclesHandled();
     return total ? Math.round(this.totalRevenue() / total) : 0;
   });
 
-  // Floor Grouping
+  // Floor groups
   groundFloorSlots = computed(() => 
     this.parkingService.slots().filter(s => s.floor === 'Ground')
   );
@@ -61,8 +86,10 @@ export class AppComponent implements OnInit, OnDestroy {
     );
   });
 
+  isPaymentSettled = signal<boolean>(false);
+
   ngOnInit() {
-    this.parkingService.startPolling(3500); // 3.5s auto polling on
+    this.parkingService.startPolling(3500);
     this.parkingService.fetchLogs();
   }
 
@@ -70,15 +97,13 @@ export class AppComponent implements OnInit, OnDestroy {
     this.parkingService.stopPolling();
   }
 
-  // 2. Interactive Click-to-Park / Quick-Exit
+  // Interactive Click-to-Park and Quick-Exit
   onSlotClick(slot: ParkingSlot) {
     if (slot.status === 'AVAILABLE') {
-      // Khali slot click karne par check-in deck me bay auto-select ho jaye
       this.selectedType.set(slot.type);
       this.selectedSlotId.set(slot.id);
       window.scrollTo({ top: 0, behavior: 'smooth' });
     } else if (slot.status === 'OCCUPIED' && slot.currentVehicle) {
-      // Occupied slot click karne par exit gate form auto-fill ho jaye
       this.exitVehicleNo.set(slot.currentVehicle);
     }
   }
@@ -97,7 +122,7 @@ export class AppComponent implements OnInit, OnDestroy {
 
   onBook() {
     if (!this.vehicleNo().trim()) {
-      alert('Please enter vehicle plate number');
+      alert('Please enter vehicle license plate.');
       return;
     }
     
@@ -110,7 +135,7 @@ export class AppComponent implements OnInit, OnDestroy {
         this.vehicleNo.set('');
         this.selectedSlotId.set('');
       },
-      error: (err) => alert(err.error?.message || 'Booking failed')
+      error: (err) => alert(err.error?.message || 'Booking process failed.')
     });
   }
 
@@ -119,9 +144,41 @@ export class AppComponent implements OnInit, OnDestroy {
     this.parkingService.exitSlot(this.exitVehicleNo().trim().toUpperCase()).subscribe({
       next: (res) => {
         this.latestReceipt.set(res.receipt);
+
+        // Automatically settle if stay qualifies for free grace period
+        this.isPaymentSettled.set(res.receipt.isGracePeriod);
         this.exitVehicleNo.set('');
       },
-      error: (err) => alert(err.error?.message || 'Checkout failed')
+      error: (err) => alert(err.error?.message || 'Checkout failed.')
     });
+  }
+
+  // Method to mark payment settled manually by guard
+  confirmPaymentReceived() {
+    this.isPaymentSettled.set(true);
+  }
+
+  // Dynamic UPI Payment QR Code Generator URL
+  getUpiQrUrl(amount: number, vehicleNo: string): string {
+    const upiString = `upi://pay?pa=parkflow@upi&pn=ParkFlowParking&am=${amount}&cu=INR&tn=Parking_Fee_${vehicleNo}`;
+    return `https://api.qrserver.com/v1/create-qr-code/?size=140x140&data=${encodeURIComponent(upiString)}`;
+  }
+
+  // Dynamic UPI Payment QR Code Generator URL
+  // getUpiQrUrl(amount: number, vehicleNo: string): string {
+  //   // Replace 'your-real-upi-id@bank' with an active UPI ID (e.g. mobile@paytm, name@okhdfcbank)
+  //   const activeVpa = 'yourname@okaxis'; 
+  //   const upiString = `upi://pay?pa=${activeVpa}&pn=ParkFlow_Parking&am=${amount}&cu=INR&tn=Parking_Fee_${vehicleNo}`;
+  //   return `https://api.qrserver.com/v1/create-qr-code/?size=140x140&data=${encodeURIComponent(upiString)}`;
+  // }
+
+  // Print Clearance Slip Trigger
+  printReceipt() {
+    window.print();
+  }
+
+  resetFilters() {
+    this.searchQuery.set('');
+    this.selectedFilterDate.set('');
   }
 }

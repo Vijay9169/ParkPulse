@@ -787,3 +787,278 @@
     color: #94a3b8;
   }
 }
+
+// QR Code Container
+.qr-container {
+  margin-top: 10px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 10px;
+  background: #f8fafc;
+  border-radius: 8px;
+  border: 1px solid #e2e8f0;
+
+  .qr-label {
+    font-size: 0.7rem;
+    font-weight: 600;
+    color: #475569;
+  }
+
+  .upi-qr {
+    width: 120px;
+    height: 120px;
+    border-radius: 6px;
+    background: #ffffff;
+    padding: 4px;
+    border: 1px solid #cbd5e1;
+  }
+}
+
+// Slip Print Button
+.voucher-actions {
+  margin-top: 12px;
+
+  .btn-print {
+    width: 100%;
+    background: #0f172a;
+    color: #ffffff;
+    border: none;
+    border-radius: 6px;
+    padding: 8px;
+    font-size: 0.8rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: opacity 0.2s ease;
+
+    &:hover {
+      opacity: 0.9;
+    }
+  }
+}
+
+// Search and Date Filter Toolbar in Logs
+.filter-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 12px;
+  margin-bottom: 16px;
+  padding: 12px;
+  background: #f8fafc;
+  border-radius: 8px;
+  border: 1px solid #e2e8f0;
+
+  .filter-item {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+
+    label {
+      font-size: 0.72rem;
+      font-weight: 600;
+      color: #64748b;
+    }
+
+    input {
+      border: 1px solid #cbd5e1;
+      border-radius: 6px;
+      padding: 6px 10px;
+      font-size: 0.82rem;
+      outline: none;
+      background: #ffffff;
+
+      &:focus {
+        border-color: #2563eb;
+      }
+    }
+  }
+
+  .btn-reset-filters {
+    background: transparent;
+    border: 1px solid #cbd5e1;
+    padding: 6px 12px;
+    border-radius: 6px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: #64748b;
+    cursor: pointer;
+
+    &:hover {
+      background: #e2e8f0;
+    }
+  }
+}
+
+// Print Specific Styling
+/* Dedicated Thermal Receipt Print Rules (Strict 1 Page Layout) */
+@media print {
+  @page {
+    size: auto;
+    margin: 0mm;
+  }
+
+  html,
+  body {
+    height: 100% !important;
+    max-height: 100% !important;
+    overflow: hidden !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    background: #ffffff !important;
+  }
+
+  /* Hide entire dashboard navigation and UI forms */
+  .app-topbar,
+  .parking-section,
+  .gate-card,
+  .voucher-actions,
+  .no-print {
+    display: none !important;
+  }
+
+  .app-viewport,
+  .dashboard-wrapper,
+  .grid-layout,
+  .terminal-deck {
+    margin: 0 !important;
+    padding: 0 !important;
+    min-height: 0 !important;
+    height: auto !important;
+    background: #ffffff !important;
+    box-shadow: none !important;
+    border: none !important;
+    display: block !important;
+    width: 100% !important;
+    overflow: hidden !important;
+  }
+
+  /* Isolate printable receipt ticket with absolute positioning */
+  #printableReceipt {
+    display: block !important;
+    visibility: visible !important;
+    position: absolute !important;
+    left: 50% !important;
+    top: 24px !important;
+    transform: translateX(-50%) !important;
+    width: 320px !important;
+    margin: 0 !important;
+    padding: 14px !important;
+    border: 1px dashed #000000 !important;
+    border-radius: 6px !important;
+    background: #ffffff !important;
+    box-shadow: none !important;
+    page-break-inside: avoid !important;
+    page-break-before: avoid !important;
+    page-break-after: avoid !important;
+    break-inside: avoid !important;
+  }
+
+  #printableReceipt * {
+    visibility: visible !important;
+    color: #000000 !important;
+  }
+
+  .voucher-top h5 {
+    font-size: 0.95rem !important;
+    text-align: center !important;
+    margin-bottom: 8px !important;
+    font-weight: bold !important;
+  }
+
+  .v-line {
+    font-size: 0.82rem !important;
+    display: flex !important;
+    justify-content: space-between !important;
+    margin: 4px 0 !important;
+  }
+
+  .v-total {
+    border-top: 1px dashed #000000 !important;
+    margin-top: 8px !important;
+    padding-top: 6px !important;
+    font-size: 1.05rem !important;
+    font-weight: bold !important;
+    display: flex !important;
+    justify-content: space-between !important;
+  }
+
+  /* Grace period box styling */
+  .grace-box {
+    border: 1px solid #000000 !important;
+    color: #000000 !important;
+    background: transparent !important;
+    padding: 4px !important;
+    font-size: 0.75rem !important;
+    text-align: center !important;
+    margin: 6px 0 !important;
+  }
+
+  /* UPI QR container & image rules */
+  .qr-container {
+    border: none !important;
+    background: transparent !important;
+    padding: 2px 0 !important;
+    margin-top: 6px !important;
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: center !important;
+
+    .qr-label {
+      font-size: 0.7rem !important;
+      font-weight: bold !important;
+      color: #000000 !important;
+      margin-bottom: 4px !important;
+    }
+  }
+
+  .upi-qr {
+    width: 95px !important;
+    height: 95px !important;
+    border: 1px solid #000000 !important;
+    padding: 2px !important;
+    background: #ffffff !important;
+  }
+}
+
+.voucher-badge {
+  font-size: 0.65rem;
+  font-weight: 800;
+  padding: 3px 8px;
+  border-radius: 4px;
+  text-transform: uppercase;
+
+  &.badge-paid {
+    background: #16a34a;
+    color: #ffffff;
+  }
+
+  &.badge-due {
+    background: #ea580c;
+    color: #ffffff;
+  }
+
+  &.badge-free {
+    background: #0284c7;
+    color: #ffffff;
+  }
+}
+
+.btn-confirm-pay {
+  width: 100%;
+  background: #16a34a;
+  color: #ffffff;
+  border: none;
+  border-radius: 6px;
+  padding: 9px;
+  font-size: 0.82rem;
+  font-weight: 700;
+  cursor: pointer;
+  margin-top: 8px;
+  transition: opacity 0.2s ease;
+
+  &:hover {
+    opacity: 0.9;
+  }
+}
