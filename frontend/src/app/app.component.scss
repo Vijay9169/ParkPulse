@@ -30,7 +30,7 @@
   background: #ffffff;
   border: 1px solid #e2e8f0;
   border-radius: 12px;
-  padding: 16px;
+  padding: 14px 18px;
   display: flex;
   flex-direction: column;
   gap: 16px;
@@ -39,51 +39,134 @@
     flex-direction: row;
     align-items: center;
     justify-content: space-between;
+    flex-wrap: wrap; /* Space kam hone par content gracefully wrap hoga */
   }
 }
+
+// .brand-zone {
+//   display: flex;
+//   align-items: center;
+//   gap: 12px;
+
+//   .logo-box {
+//     width: 44px;
+//     height: 44px;
+//     background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+//     border: 1px solid #334155;
+//     color: #38bdf8;
+//     border-radius: 10px;
+//     display: flex;
+//     align-items: center;
+//     justify-content: center;
+//     flex-shrink: 0;
+//     box-shadow: 0 4px 10px rgba(0, 0, 0, 0.15);
+//   }
+
+//   .title-row {
+//     display: flex;
+//     align-items: center;
+//     gap: 8px;
+
+//     h1 {
+//       font-size: 1.25rem;
+//       font-weight: 700;
+//       color: #0f172a;
+//     }
+
+//     .pill-active {
+//       font-size: 0.65rem;
+//       font-weight: 700;
+//       background: #eff6ff;
+//       color: #2563eb;
+//       padding: 2px 8px;
+//       border-radius: 999px;
+//       border: 1px solid #bfdbfe;
+//     }
+//   }
+
+//   .subtitle {
+//     font-size: 0.75rem;
+//     color: #64748b;
+//   }
+// }
+
+
 
 .brand-zone {
   display: flex;
   align-items: center;
-  gap: 12px;
+  justify-content: center;
+  width: 100%;
+  flex-shrink: 0;
 
-  .logo-box {
-    width: 42px;
-    height: 42px;
-    background: #0f172a;
-    color: #ffffff;
-    border-radius: 10px;
-    display: flex;
+  @media (min-width: 1024px) {
+    width: auto;
+    justify-content: flex-start;
+  }
+
+  .brand-wrapper {
+    position: relative;
+    display: inline-flex; /* Inline-flex se dot hamesha image ke corner par chipka rahega */
     align-items: center;
     justify-content: center;
-    flex-shrink: 0;
   }
 
-  .title-row {
-    display: flex;
-    align-items: center;
-    gap: 8px;
+  .brand-banner-img {
+    width: 100%;
+    max-width: 420px;     /* Tablet par spacious stretch */
+    height: auto;
+    max-height: 84px;
+    object-fit: contain;
+    border-radius: 8px;
+    display: block;
 
-    h1 {
-      font-size: 1.25rem;
-      font-weight: 700;
-      color: #0f172a;
-    }
-
-    .pill-active {
-      font-size: 0.65rem;
-      font-weight: 700;
-      background: #eff6ff;
-      color: #2563eb;
-      padding: 2px 8px;
-      border-radius: 999px;
-      border: 1px solid #bfdbfe;
+    @media (min-width: 1024px) {
+      width: auto;
+      height: 74px;
+      max-width: 440px;
     }
   }
 
-  .subtitle {
-    font-size: 0.75rem;
-    color: #64748b;
+  .live-dot {
+    position: absolute;
+    top: 6px;
+    right: 8px;           /* Image ke right corner par locked */
+    width: 8px;
+    height: 8px;
+    background-color: #22c55e;
+    border-radius: 50%;
+    box-shadow: 0 0 0 2px #ffffff, 0 0 8px #22c55e;
+    animation: live-pulse 1.8s infinite ease-in-out;
+  }
+}
+
+@keyframes live-pulse {
+  0% {
+    transform: scale(0.95);
+    opacity: 0.8;
+  }
+  50% {
+    transform: scale(1.25);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(0.95);
+    opacity: 0.8;
+  }
+}
+
+@keyframes pulse-green {
+  0% {
+    transform: scale(0.9);
+    opacity: 0.8;
+  }
+  50% {
+    transform: scale(1.2);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(0.9);
+    opacity: 0.8;
   }
 }
 
@@ -126,39 +209,43 @@
   grid-template-columns: repeat(2, 1fr);
   gap: 10px;
   width: 100%;
+  flex-shrink: 0; /* Cards ko pichakne se rokega */
 
   @media (min-width: 640px) {
     grid-template-columns: repeat(4, 1fr);
   }
 
-  @media (min-width: 1024px) {
+  @media (min-width: 1100px) {
     width: auto;
     display: flex;
-    gap: 12px;
+    gap: 10px;
   }
 
   .ribbon-card {
     background: #f8fafc;
     border: 1px solid #e2e8f0;
     border-radius: 8px;
-    padding: 10px 14px;
+    padding: 8px 12px;
     display: flex;
     flex-direction: column;
     justify-content: center;
-    min-width: 110px;
+    min-width: 96px;
+    flex-shrink: 0;
 
     .rc-label {
-      font-size: 0.7rem;
+      font-size: 0.65rem;
       text-transform: uppercase;
-      font-weight: 600;
+      font-weight: 700;
       color: #64748b;
-      margin-bottom: 4px;
+      margin-bottom: 3px;
+      white-space: nowrap;
     }
 
     .rc-val {
-      font-size: 1.15rem;
+      font-size: 1.1rem;
       font-weight: 700;
       color: #0f172a;
+      line-height: 1.2;
 
       &.val-green {
         color: #16a34a;
@@ -172,7 +259,7 @@
     .mini-progress-row {
       display: flex;
       align-items: center;
-      gap: 8px;
+      gap: 6px;
 
       .progress-track {
         flex: 1;
@@ -180,6 +267,7 @@
         background: #e2e8f0;
         border-radius: 999px;
         overflow: hidden;
+        min-width: 40px;
 
         .progress-fill {
           height: 100%;
@@ -195,11 +283,12 @@
 
     .surge-badge {
       display: inline-block;
-      font-size: 0.72rem;
+      font-size: 0.7rem;
       font-weight: 700;
       padding: 2px 6px;
       border-radius: 4px;
       text-align: center;
+      white-space: nowrap;
 
       &.badge-normal {
         background: #ecfdf5;
